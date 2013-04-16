@@ -1,0 +1,205 @@
+'''
+myStatistics.py - library for computing statstics.
+Helpful for scientific experimental tecniques. 
+Author: Jeremy Bohrer
+Date: 4/1/2013
+Required: pylab
+'''
+
+from pylab import *
+
+'''
+Helpful statistic functions.
+'''
+
+# mean of data
+def mean(values):
+    sizeValues = size(values)
+    total = 0.0
+    for value in values:
+        total = total + value
+    return total/sizeValues
+
+# Weighted average.  
+def meanWeighted(values, error):
+    numerator = 0
+    denominator = 0
+    for i in range(size(values)):
+        weight = 1 / error[i]**2
+        numerator = numerator + weight*values[i]
+        denominator = denominator + weight
+    return numerator / denominator
+
+# Weighted average unceirtanty.
+def unceirtantyWeighted(errors):
+    total = 0.0
+    for error in errors:
+        weight = 1 / error**2
+        total = total + weight
+    return 1 / sqrt(total)
+
+# Sample standard deviation 
+def sdSample(values):
+    deviationSum = 0.0
+    total = size(values)-1
+    avg = mean(values)
+    for value in values:
+        deviationSum = deviationSum + (value - avg)**2
+    return sqrt((1.0/total)*deviationSum)
+ 
+# Population standard deviation   
+def sdPopulation(values):
+    deviationSum = 0
+    total = size(values)
+    avg = mean(values)
+    for value in values:
+        deviationSum = deviationSum + (value - avg)**2
+    return sqrt((1.0/total)*deviationSum)
+   
+# Mean standard deviation 
+def meanSD(values):
+    sd = sdSample(values)
+    sizeValues = size(values)
+    return sd/sqrt(sizeValues)
+    
+# Root mean squared
+def rootMeanSquared(values):
+    total = 0.0
+    sizeValues = size(values)
+    for value in values:
+        total = total + value**2
+    return sqrt(total/sizeValues)
+    
+'''
+Least Square Fitting ch8.
+'''
+
+# find the denominator for lsf.
+def lsfDenominator(arrayX):
+    sizeValue = size(arrayX)+0.0
+    return sizeValue*summationMult([arrayX, arrayX]) - (summation(arrayX)**2)
+
+# calculate the intercept on the y axis, A.
+def lsfIntercept(arrayX, arrayY):
+    numerator = (summationMult([arrayX, arrayX]) * summation(arrayY)) - (summation(arrayX)*summationMult([arrayX, arrayY]))
+    return numerator / lsfDenominator(arrayX)
+ 
+# calculate the slope of the line fitted, B.   
+def lsfSlope(arrayX, arrayY):
+    sizeValue = size(arrayX) + 0.0
+    numerator = (sizeValue*summationMult([arrayX, arrayY])) - (summation(arrayX)*summation(arrayY))
+    return numerator / lsfDenominator(arrayX)
+
+# Calculate unceirtanty for y.
+def lsfSigmaY(arrayX, arrayY):
+    sizeValues = size(arrayX)
+    total = 0
+    for i in range(sizeValues):
+        total = total + (arrayY[i] - lsfIntercept(arrayX, arrayY) - lsfSlope(arrayX, arrayY)*arrayX[i])**2
+    return sqrt(total / (sizeValues - 2))
+
+# Calculate unceirtanty of intercept, A.
+def lsfSigmaIntercept(sigma, arrayX):
+    return sigma*sqrt(summationMult([arrayX, arrayX]) / lsfDenominator(arrayX))
+
+# Calculate unceirtanty of slope, B.
+def lsfSigmaSlope(sigma, arrayX):
+    sizeValue = size(arrayX) + 0.0
+    return sigma*sqrt(sizeValue / lsfDenominator(arrayX))
+  
+# Create a array of values for a line fit. 
+def lsfLineArray(arrayX, arrayY):
+    newLine = []
+    slope = lsfSlope(arrayX, arrayY)
+    intercept = lsfIntercept(arrayX, arrayY)
+    for value in arrayX:
+        point = intercept + slope*value
+        newLine.append(point)
+    return newLine
+  
+'''
+Weighted Least Square Fitting ch8.
+'''
+
+# calculate sigma y for weighted data.
+def lsfWeightSigmaTotal(sigmaX, sigmaY, arrayX, arrayY):
+    size = len(sigmaX)
+    sigmaTotal = [0.0 for valueX in range(size)]
+    slopeSaved = 0.0
+    for i in range(5):
+        for j in range(size):
+            if (i == 0):
+                sigmaTotal[j] = sqrt(sigmaY[j]**2)
+            else:
+                sigmaTotal[j] = sqrt(sigmaY[j]**2 + (slopeSaved*sigmaX[j])**2)
+        weights = [lsfWeight(sigma) for sigma in sigmaTotal]
+        slopeSaved = lsfWeigtSlope(arrayX, arrayY, weights)
+    return sigmaTotal
+
+# B
+def lsfWeigtSlope(arrayX, arrayY, weights):
+    numerator = (summation(weights)*summationMult([arrayX, arrayY, weights])) - (summationMult([weights, arrayX])*summationMult([weights, arrayY]))
+    return numerator / lsfWeightDenominator(arrayX, weights)
+ 
+# A   
+def lsfWeigtIntercept(arrayX, arrayY, weights):
+    numerator = (summationMult([weights, arrayX, arrayX]) * summationMult([weights, arrayY])) - (summationMult([weights, arrayX]) * summationMult([weights, arrayX, arrayY]))
+    return numerator / lsfWeightDenominator(arrayX, weights)
+    
+# denominator.
+def lsfWeightDenominator(arrayX, weights):
+    return (summation(weights)*summationMult([weights, arrayX, arrayX])) - (summationMult([arrayX, weights]))**2
+
+# unceirtanty in the slope B
+def lsfWeightSigmaSlope(arrayX, weights):
+    return sqrt(summation(weights) / lsfWeightDenominator(arrayX, weights) )
+    
+# unceirtanty in the intercept A
+def lsfWeightSigmaIntercept(arrayX, weights):
+    return sqrt(summationMult([weights, arrayX, arrayX]) / lsfWeightDenominator(arrayX, weights) )
+
+# calculate the weight from the gima. 
+def lsfWeight(sigmaY):
+    return 1 / sigmaY**2
+
+# create a array of points from the slope and intercept data.
+def lsfWeightLineArray(arrayX, arrayY, weights):
+    newLine = []
+    intercept = lsfWeigtIntercept(arrayX, arrayY, weights)
+    slope = lsfWeigtSlope(arrayX, arrayY, weights)
+    for value in arrayX:
+        point = intercept + slope*value
+        newLine.append(point)
+    return newLine
+
+  
+'''
+Summations
+'''
+
+# Summation over an array.
+def summation(array):
+    total = 0
+    for value in array:
+        total = total + value
+    return total
+
+# Summation over multiple arrays where they get multiplied together.
+def summationMult(array):
+    total = 0
+    count = 0
+    sizeArray = size(array[0])
+    while count < sizeArray:
+        currentValues = []
+        for dataSet in array:
+            currentValues.append(dataSet[count])
+        total = total + multiplyArray(currentValues)
+        count += 1
+    return total
+
+# Multiply a array together.     
+def multiplyArray(array):
+    total = 1
+    for value in array:
+        total = total * value
+    return total
