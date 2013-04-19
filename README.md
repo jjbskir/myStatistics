@@ -1,7 +1,7 @@
 myStatistics
 ============
 
-Library with helpful statistical functions. 
+Library with helpful statistical functions writen in Python. 
 Includes functions for calculating mean, standard deviation, summations, 
 and linear line fitting with weighted and unweighted data.
 
@@ -15,4 +15,5 @@ Date
 
 Requirments
 ============
+Python
 Scipy
